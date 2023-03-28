@@ -125,8 +125,13 @@ function ListViewBlock( {
 		blockTitle
 	);
 
-	const { isTreeGridMounted, expand, collapse, BlockSettingsMenu } =
-		useListViewContext();
+	const {
+		isTreeGridMounted,
+		expandedState,
+		expand,
+		collapse,
+		BlockSettingsMenu,
+	} = useListViewContext();
 
 	const hasSiblings = siblingBlockCount > 0;
 	const hasRenderedMovers = showBlockMovers && hasSiblings;
@@ -328,6 +333,8 @@ function ListViewBlock( {
 							} }
 							disableOpenOnArrowDown
 							__experimentalSelectBlock={ updateSelection }
+							expandedState={ expandedState }
+							expand={ expand }
 						/>
 					) }
 				</TreeGridCell>
