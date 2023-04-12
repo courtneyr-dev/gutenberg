@@ -43,7 +43,7 @@ const cleanEmptyObject = ( object ) => {
 	const cleanedNestedObjects = Object.fromEntries(
 		Object.entries( object )
 			.map( ( [ key, value ] ) => [ key, cleanEmptyObject( value ) ] )
-			.filter( ( [ , value ] ) => Boolean( value ) )
+			.filter( ( [ , value ] ) => value !== undefined )
 	);
 	return isEmpty( cleanedNestedObjects ) ? undefined : cleanedNestedObjects;
 };
