@@ -7,6 +7,7 @@
 ### Internal
 
 -   `Mobile` Refactor of the KeyboardAwareFlatList component.
+-   Update the framer motion dependency to the latest version `10.11.6` ([#49822](https://github.com/WordPress/gutenberg/pull/49822)).
 
 ### Enhancements
 
