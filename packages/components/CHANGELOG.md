@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-### New Feature
-
-- `Motion`: Expose `useAnimation` from framer motion package.
-
 ## 23.8.0 (2023-04-12)
 
 ### Internal
