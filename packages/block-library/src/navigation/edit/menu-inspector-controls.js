@@ -63,14 +63,16 @@ const MainContent = ( {
 				'You have not yet created any menus. Displaying a list of your Pages'
 		  );
 	return (
-		<PrivateListView
-			blocks={ clientIdsTree }
-			parentId={ clientId }
-			isExpanded={ true }
-			description={ description }
-			showAppender={ true }
-			blockSettingsMenu={ LeafMoreMenu }
-		/>
+		<div className="wp-block-navigation__menu-inspector-controls">
+			<PrivateListView
+				blocks={ clientIdsTree }
+				rootClientId={ clientId }
+				isExpanded
+				description={ description }
+				showAppender
+				blockSettingsMenu={ LeafMoreMenu }
+			/>
+		</div>
 	);
 };
 
