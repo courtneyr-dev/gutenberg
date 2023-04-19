@@ -541,8 +541,12 @@ test.describe( 'Navigation block', () => {
 
 			// Expect to see the Page Link and Custom Link blocks as the nth(0) and nth(1) results.
 			// This is important for usability as the Page Link block is the most likely to be used.
-			await expect( blockResultOptions.nth( 0 ) ).toHaveText( 'Page' );
-			await expect( blockResultOptions.nth( 1 ) ).toHaveText( 'Custom' );
+			await expect( blockResultOptions.nth( 0 ) ).toHaveText(
+				'Page Link'
+			);
+			await expect( blockResultOptions.nth( 1 ) ).toHaveText(
+				'Custom Link'
+			);
 
 			// Select the Page Link option.
 			const pageLinkResult = blockResultOptions.nth( 0 );
