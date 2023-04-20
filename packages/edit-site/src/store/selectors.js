@@ -124,9 +124,7 @@ export const getSettings = createSelector(
 			__experimentalPreferPatternsOnRoot:
 				'wp_template' === getEditedPostType( state ),
 			contentBlockTypes: CONTENT_BLOCK_TYPES,
-			templateLock: hasPageContentLock( state )
-				? 'contentBlocksOnly'
-				: false,
+			templateLock: hasPageContentLock( state ) ? 'contentOnly' : false,
 		};
 
 		const canUserCreateMedia = getCanUserCreateMedia( state );

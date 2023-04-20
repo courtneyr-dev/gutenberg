@@ -14,6 +14,7 @@ import {
 	getPossibleBlockTransformations,
 	parse,
 	switchToBlockType,
+	store as blocksStore,
 } from '@wordpress/blocks';
 import { Platform } from '@wordpress/element';
 import { applyFilters } from '@wordpress/hooks';
@@ -21,6 +22,7 @@ import { symbol } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 import { create, remove, toHTMLString } from '@wordpress/rich-text';
 import deprecated from '@wordpress/deprecated';
+import { createRegistrySelector } from '@wordpress/data';
 
 /**
  * Internal dependencies
@@ -1662,46 +1664,24 @@ export function canInsertBlocks( state, clientIds, rootClientId = null ) {
  *
  * @return {boolean} Whether the given block is allowed to be removed.
  */
-export const canRemoveBlock = createSelector(
-	( state, clientId, rootClientId = null ) => {
-		const attributes = getBlockAttributes( state, clientId );
+export function canRemoveBlock( state, clientId, rootClientId = null ) {
+	const attributes = getBlockAttributes( state, clientId );
 
-		// attributes can be null if the block is already deleted.
-		if ( attributes === null ) {
-			return true;
-		}
-
-		// If the block has a lock defined on it, we use that.
-		const { lock } = attributes;
-		if ( lock !== undefined && lock?.remove !== undefined ) {
-			// When remove is true, it means we cannot remove it.
-			return ! lock?.remove;
-		}
-
-		const templateLock = getTemplateLock( state, rootClientId );
-		if ( templateLock === 'contentBlocksOnly' ) {
-			// Allow only designated content blocks to be removed.
-			return getBlockParents( state, clientId ).some( ( parent ) =>
-				state.settings.contentBlockTypes.includes(
-					getBlockName( state, parent )
-				)
-			);
-		} else if ( templateLock ) {
-			// Prevent removal when template lock exists.
-			return false;
-		}
-
-		// Permit removing by default.
+	// attributes can be null if the block is already deleted.
+	if ( attributes === null ) {
 		return true;
-	},
-	( state, clientId, rootClientId = null ) => [
-		state.blocks.byClientId.get( clientId ),
-		state.blockListSettings[ rootClientId ],
-		state.settings.templateLock,
-		state.settings.contentBlockTypes,
-		state.blocks.parents,
-	]
-);
+	}
+
+	const { lock } = attributes;
+	const parentIsLocked = !! getTemplateLock( state, rootClientId );
+	// If we don't have a lock on the blockType level, we defer to the parent templateLock.
+	if ( lock === undefined || lock?.remove === undefined ) {
+		return ! parentIsLocked;
+	}
+
+	// When remove is true, it means we cannot remove it.
+	return ! lock?.remove;
+}
 
 /**
  * Determines if the given blocks are allowed to be removed.
@@ -1727,44 +1707,22 @@ export function canRemoveBlocks( state, clientIds, rootClientId = null ) {
  *
  * @return {boolean | undefined} Whether the given block is allowed to be moved.
  */
-export const canMoveBlock = createSelector(
-	( state, clientId, rootClientId = null ) => {
-		const attributes = getBlockAttributes( state, clientId );
-		if ( attributes === null ) {
-			return;
-		}
+export function canMoveBlock( state, clientId, rootClientId = null ) {
+	const attributes = getBlockAttributes( state, clientId );
+	if ( attributes === null ) {
+		return;
+	}
 
-		// If the block has a lock defined on it, we use that.
-		const { lock } = attributes;
-		if ( lock !== undefined && lock?.move !== undefined ) {
-			// When move is true, it means we cannot move it.
-			return ! lock?.move;
-		}
+	const { lock } = attributes;
+	const parentIsLocked = getTemplateLock( state, rootClientId ) === 'all';
+	// If we don't have a lock on the blockType level, we defer to the parent templateLock.
+	if ( lock === undefined || lock?.move === undefined ) {
+		return ! parentIsLocked;
+	}
 
-		const templateLock = getTemplateLock( state, rootClientId );
-		if ( templateLock === 'all' ) {
-			// Prevent moving when template lock is 'all'.
-			return false;
-		} else if ( templateLock === 'contentBlocksOnly' ) {
-			// Allow only designated content blocks to be moved.
-			return getBlockParents( state, clientId ).some( ( parent ) =>
-				state.settings.contentBlockTypes.includes(
-					getBlockName( state, parent )
-				)
-			);
-		}
-
-		// Permit moving by default.
-		return true;
-	},
-	( state, clientId, rootClientId ) => [
-		state.blocks.byClientId.get( clientId ),
-		state.blockListSettings[ rootClientId ],
-		state.settings.templateLock,
-		state.settings.contentBlockTypes,
-		state.blocks.parents,
-	]
-);
+	// When move is true, it means we cannot move it.
+	return ! lock?.move;
+}
 
 /**
  * Determines if the given blocks are allowed to be moved.
@@ -1789,55 +1747,17 @@ export function canMoveBlocks( state, clientIds, rootClientId = null ) {
  *
  * @return {boolean} Whether the given block is allowed to be edited.
  */
-export const canEditBlock = createSelector(
-	( state, clientId ) => {
-		const attributes = getBlockAttributes( state, clientId );
-		if ( attributes === null ) {
-			return true;
-		}
-
-		// If the block has a lock defined on it, we use that.
-		const { lock } = attributes;
-		if ( lock !== undefined && lock?.edit !== undefined ) {
-			// When the edit is true, we cannot edit the block.
-			return ! lock?.edit;
-		}
-
-		const templateLock = getTemplateLock( state, clientId );
-		if ( templateLock === 'contentBlocksOnly' ) {
-			// Prevent editing if:
-			return (
-				// Block is not a content block, or;
-				state.settings.contentBlockTypes.includes(
-					getBlockName( state, clientId )
-				) ||
-				// Block is not within a content block, or;
-				getBlockParents( state, clientId ).some( ( parent ) =>
-					state.settings.contentBlockTypes.includes(
-						getBlockName( state, parent )
-					)
-				) ||
-				// Block is not a parent of a content block.
-				getClientIdsOfDescendants( state, [ clientId ] ).some(
-					( descendant ) =>
-						state.settings.contentBlockTypes.includes(
-							getBlockName( state, descendant )
-						)
-				)
-			);
-		}
-
-		// Permit edit by default.
+export function canEditBlock( state, clientId ) {
+	const attributes = getBlockAttributes( state, clientId );
+	if ( attributes === null ) {
 		return true;
-	},
-	( state, clientId ) => [
-		state.blocks.byClientId.get( clientId ),
-		state.blockListSettings[ clientId ],
-		state.settings.templateLock,
-		state.settings.contentBlockTypes,
-		state.blocks.parents,
-	]
-);
+	}
+
+	const { lock } = attributes;
+
+	// When the edit is true, we cannot edit the block.
+	return ! lock?.edit;
+}
 
 /**
  * Determines if the given block type can be locked/unlocked by a user.
@@ -2849,27 +2769,63 @@ export const __unstableGetVisibleBlocks = createSelector(
 	( state ) => [ state.blockVisibility ]
 );
 
-/**
- * DO-NOT-USE in production.
- * This selector is created for internal/experimental only usage and may be
- * removed anytime without any warning, causing breakage on any plugin or theme invoking it.
- */
-export const __unstableGetContentLockingParent = createSelector(
+export const __experimentalIsContentLockingBlock = ( state, clientId ) =>
+	__experimentalGetRootContentLockingBlock( state, clientId ) === clientId;
+
+export const __experimentalIsContentLockedBlock = createSelector(
 	( state, clientId ) => {
-		let current = clientId;
-		let result;
-		while ( state.blocks.parents.has( current ) ) {
-			current = state.blocks.parents.get( current );
-			if (
-				current &&
-				getTemplateLock( state, current ) === 'contentOnly'
-			) {
-				result = current;
-			}
+		const isWithinContentBlock = getBlockParents( state, clientId ).some(
+			( parentClientId ) =>
+				__experimentalIsContentBlock( state, parentClientId )
+		);
+		if ( isWithinContentBlock ) {
+			return false;
 		}
-		return result;
+
+		if ( getTemplateLock( state ) === 'contentOnly' ) {
+			return true;
+		}
+
+		const isWithinContentLockingBlock =
+			!! __experimentalGetRootContentLockingBlock( state, clientId );
+		return isWithinContentLockingBlock;
 	},
-	( state ) => [ state.blocks.parents, state.blockListSettings ]
+	( state, clientId ) => [
+		state.blocks.parents.get( clientId ),
+		state.settings.contentBlockTypes,
+		state.settings.templateLock,
+		state.blockListSettings,
+	]
+);
+
+export const __experimentalGetRootContentLockingBlock = createSelector(
+	( state, clientId ) => {
+		if ( getTemplateLock( state ) === 'contentOnly' ) {
+			return;
+		}
+
+		return [ clientId, ...getBlockParents( state, clientId ) ].findLast(
+			( candidateClientId ) =>
+				getTemplateLock( state, candidateClientId ) === 'contentOnly'
+		);
+	},
+	( state, clientId ) => [
+		state.settings.templateLock,
+		state.blocks.parents.get( clientId ),
+		state.blockListSettings,
+	]
+);
+
+export const __experimentalIsContentBlock = createRegistrySelector(
+	( select ) => ( state, clientId ) => {
+		const blockName = getBlockName( state, clientId );
+		return (
+			state.settings.contentBlockTypes.includes( blockName ) ||
+			select( blocksStore ).__experimentalHasContentRoleAttribute(
+				blockName
+			)
+		);
+	}
 );
 
 /**

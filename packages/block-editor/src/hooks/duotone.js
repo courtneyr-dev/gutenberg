@@ -208,7 +208,7 @@ const withDuotoneControls = createHigherOrderComponent(
 			( select ) => {
 				return select(
 					blockEditorStore
-				).__unstableGetContentLockingParent( props.clientId );
+				).__experimentalIsContentLockedBlock( props.clientId );
 			},
 			[ props.clientId ]
 		);

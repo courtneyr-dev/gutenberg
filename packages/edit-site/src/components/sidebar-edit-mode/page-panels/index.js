@@ -82,6 +82,7 @@ export default function PagePanels() {
 					) }
 				/>
 			</PanelBody>
+			{ /* TODO: DRY this with BlockInspectorLockedBlocks. */ }
 			<PanelBody title={ __( 'Content' ) }>
 				<VStack>
 					{ contentBlocks.map( ( { clientId, blockName } ) => {
