@@ -1481,6 +1481,32 @@ export function getTemplateLock( state, rootClientId ) {
 	return getBlockListSettings( state, rootClientId )?.templateLock ?? false;
 }
 
+export const __experimentalIsInsertionLocked = createSelector(
+	( state, rootClientId = null ) => {
+		const templateLock = getTemplateLock( state, rootClientId );
+		if ( rootClientId && templateLock === 'contentOnly' ) {
+			// Lock insertion into a non content block.
+			const isWithinContentBlock =
+				__experimentalIsContentBlock( state, rootClientId ) ||
+				getBlockParents( state, rootClientId ).some(
+					( parentClientId ) =>
+						__experimentalIsContentBlock( state, parentClientId )
+				);
+			return ! isWithinContentBlock;
+		}
+		// Otherwise lock insertion when there is a lock.
+		return !! templateLock;
+	},
+	( state, rootClientId ) =>
+		rootClientId
+			? [
+					state.blockListSettings[ rootClientId ],
+					state.blocks.parents,
+					state.settings.contentBlockTypes,
+			  ]
+			: [ state.settings.templateLock ]
+);
+
 const checkAllowList = ( list, item, defaultResult = null ) => {
 	if ( typeof list === 'boolean' ) {
 		return list;
@@ -1537,8 +1563,7 @@ const canInsertBlockTypeUnmemoized = (
 		return false;
 	}
 
-	const isLocked = !! getTemplateLock( state, rootClientId );
-	if ( isLocked ) {
+	if ( __experimentalIsInsertionLocked( state, rootClientId ) ) {
 		return false;
 	}
 
@@ -1672,15 +1697,28 @@ export function canRemoveBlock( state, clientId, rootClientId = null ) {
 		return true;
 	}
 
+	// If the block has a lock defined on it, we use that.
 	const { lock } = attributes;
-	const parentIsLocked = !! getTemplateLock( state, rootClientId );
-	// If we don't have a lock on the blockType level, we defer to the parent templateLock.
-	if ( lock === undefined || lock?.remove === undefined ) {
-		return ! parentIsLocked;
+	if ( lock !== undefined && lock?.remove !== undefined ) {
+		// When remove is true, it means we cannot remove it.
+		return ! lock?.remove;
 	}
 
-	// When remove is true, it means we cannot remove it.
-	return ! lock?.remove;
+	const templateLock = getTemplateLock( state, rootClientId );
+	if ( templateLock === 'contentOnly' ) {
+		// Permit removal when inside a content block.
+		const isWithinContentBlock = getBlockParents( state, clientId ).some(
+			( parentClientId ) =>
+				__experimentalIsContentBlock( state, parentClientId )
+		);
+		return isWithinContentBlock;
+	} else if ( templateLock ) {
+		// Prevent removal when template lock exists.
+		return false;
+	}
+
+	// Permit removing by default.
+	return true;
 }
 
 /**
@@ -2790,8 +2828,8 @@ export const __experimentalIsContentLockedBlock = createSelector(
 			!! __experimentalGetRootContentLockingBlock( state, clientId );
 		return isWithinContentLockingBlock;
 	},
-	( state, clientId ) => [
-		state.blocks.parents.get( clientId ),
+	( state ) => [
+		state.blocks.parents,
 		state.settings.contentBlockTypes,
 		state.settings.templateLock,
 		state.blockListSettings,
@@ -2809,9 +2847,9 @@ export const __experimentalGetRootContentLockingBlock = createSelector(
 				getTemplateLock( state, candidateClientId ) === 'contentOnly'
 		);
 	},
-	( state, clientId ) => [
+	( state ) => [
 		state.settings.templateLock,
-		state.blocks.parents.get( clientId ),
+		state.blocks.parents,
 		state.blockListSettings,
 	]
 );
