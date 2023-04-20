@@ -71,6 +71,10 @@ const MainContent = ( {
 				description={ description }
 				showAppender
 				blockSettingsMenu={ LeafMoreMenu }
+				prioritizedInserterBlocks={ [
+					'core/navigation-link/page',
+					'core/navigation-link',
+				] }
 			/>
 		</div>
 	);
